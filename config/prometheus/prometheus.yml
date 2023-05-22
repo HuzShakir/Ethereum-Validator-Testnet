@@ -1,0 +1,22 @@
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - alertmanager:9093
+rule_files:
+  - rules.yml
+
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+
+  - job_name: 'geth'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['geth:6060']
+    metrics_path: "/debug/metrics/prometheus"
+
+  - job_name: 'validator'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['validator:8081']
+    # metrics_path: "/metrics"

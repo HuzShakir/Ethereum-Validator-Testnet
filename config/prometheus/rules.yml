@@ -1,0 +1,10 @@
+groups:
+- name: alert_rules
+  rules:
+  - alert: CPU_usage_too_high
+    expr: system_cpu_sysload >= 90
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: CPU usage above 90%

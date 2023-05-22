@@ -1,0 +1,112 @@
+services:
+  beacon-node:
+    image: gcr.io/prysmaticlabs/prysm/beacon-chain:stable
+    hostname: beacon
+    command: 
+        - --datadir=/data 
+        - --goerli 
+        - --suggested-fee-recipient=$$SUGGESTED_FEE_RECIPIENT
+        - --jwt-secret=/jwtsecret/jwt.hex   
+        - --rpc-host=0.0.0.0   
+        - --grpc-gateway-host=0.0.0.0 
+        - --monitoring-host=0.0.0.0 
+        - --execution-endpoint=http://geth:8551
+        - --accept-terms-of-use
+        - --enable-debug-rpc-endpoints
+        - --grpc-max-msg-size=65568081
+        - --checkpoint-sync-url=https://goerli.beaconstate.ethstaker.cc/
+        - --genesis-beacon-api-url=https://goerli.beaconstate.ethstaker.cc/
+    ports:
+            - 127.0.0.1:4000:4000
+            - 127.0.0.1:3500:3500
+            - 13000:13000/tcp
+            - 12000:12000/udp
+    volumes:
+        - ./beacon:/data
+        - ./jwtsecret:/jwtsecret
+  validator:
+        container_name: validator
+        image: gcr.io/prysmaticlabs/prysm/validator:stable
+        restart: on-failure
+        hostname: validator
+        ports:
+                - 8081:8081
+        depends_on:
+                - beacon-node
+        command: 
+        - --datadir=/data
+        - --wallet-dir=/data
+        - --wallet-password-file=/data/password.txt
+        - --beacon-rpc-provider=beacon:4000
+        - --graffiti="validatoor"
+        - --accept-terms-of-use
+        - --monitoring-host=0.0.0.0
+        volumes:
+                - ./validator:/data
+  geth:
+        container_name: geth
+        image: ethereum/client-go
+        restart: always
+        hostname: geth
+        command:
+        - --goerli
+        - --authrpc.port=8551
+        - --authrpc.addr=0.0.0.0
+        - --metrics
+        - --datadir=/geth
+        - --metrics.addr=0.0.0.0
+        - --authrpc.jwtsecret=/jwtsecret/jwt.hex
+        - --authrpc.vhosts=*
+        ports:
+                - 30303:30303/tcp
+                - 30303:30303/udp
+                - 8551:8551
+                - 6060:6060
+        volumes:
+                - ./geth:/geth
+                - ./jwtsecret:/jwtsecret
+
+  prometheus:
+        container_name: prometheus
+        image: prom/prometheus:v2.36.2
+        user: root 
+        restart: always
+        hostname: prometheus
+        command:
+        - --storage.tsdb.retention.time=31d
+        - --config.file=/etc/prometheus/prometheus.yml
+        ports:
+                - 127.0.0.1:9090:9090
+                
+        volumes:
+                - ./config/prometheus:/etc/prometheus
+                - ./prometheus:/prometheus
+
+  grafana:
+        container_name: grafana
+        image: grafana/grafana:7.0.3
+        restart: on-failure
+        hostname: grafana
+        depends_on:
+                - prometheus
+        ports:
+                - 127.0.0.1:3000:3000
+        volumes:
+                - ./grafana/provisioning:/etc/grafana/provisioning
+                - grafana_data:/var/lib/grafana
+  alertmanager:
+    image: prom/alertmanager
+    user: root
+    ports:
+      - 9093:9093
+    volumes:
+      - ./config/alertmanager/:/etc/alertmanager/
+    restart: always
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+
+
+volumes:
+        grafana_data:
+
